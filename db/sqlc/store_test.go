@@ -3,7 +3,6 @@ package db
 import (
 	"context"
 	"testing"
-
 	"github.com/stretchr/testify/require"
 )
 
@@ -101,5 +100,53 @@ func TestTransferTx(t *testing.T) {
 
 	require.Equal(t, account1.Balance-int64(concur)*amount, updatedAccount1.Balance)
 	require.Equal(t, account2.Balance+int64(concur)*amount, updatedAccount2.Balance)
+
+}
+
+func TestTransferTxDeadlock(t *testing.T) {
+	store := NewStore(testDB)
+
+	account1 := createRandomAccount(t)
+	account2 := createRandomAccount(t)
+
+	concur := 10
+	amount := int64(10)
+
+	errChan := make(chan error)
+
+	for i := 0; i < concur; i++ {
+
+		fromAccountID := account1.ID
+		toAccountID := account2.ID
+
+		if i%2 == 0 {
+			fromAccountID = account2.ID
+			toAccountID = account1.ID
+		}
+
+		go func() {
+			_, err := store.TransferTx(context.Background(), TransferTxParams{
+				FromAccountID: fromAccountID,
+				ToAccountID:   toAccountID,
+				Amount:        amount,
+			})
+			errChan <- err
+		}()
+	}
+
+	for i := 0; i < concur; i++ {
+		err := <-errChan
+		require.NoError(t, err)
+
+	}
+
+	updatedAccount1, err := store.GetAccount(context.Background(), account1.ID)
+	require.NoError(t, err)
+
+	updatedAccount2, err := store.GetAccount(context.Background(), account2.ID)
+	require.NoError(t, err)
+
+	require.Equal(t, account1.Balance, updatedAccount1.Balance)
+	require.Equal(t, account2.Balance, updatedAccount2.Balance)
 
 }
