@@ -34,7 +34,7 @@ func RandomMoney() int64 {
 }
 
 func RandomCurrency() string {
-	const currencies = "USD, EUR, GBP, CHF, JPY, CAD, AUD, NZD"
+	const currencies = "USD, EUR"
 	currenciesList := strings.Split(currencies, ", ")
 	n := len(currenciesList)
 	return currenciesList[rand.Intn(n)]
